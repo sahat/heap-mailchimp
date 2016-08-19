@@ -2,7 +2,36 @@
 <p>Welcome to the MailChimp Integration Example</p>
 {{#if accessToken}}
   <h3>Access Token: {{accessToken}}</h3>
+  <h3>User Metadata:</h3>
+  <pre>{{metadata}}</pre>
+  <h3>Heap Analytics Actions:</h3>
+  <p>
+    <button id="reports">Send MailChimp Reports</button>
+    <button id="userActivity">Send MailChimp User Activity</button>
+  </p>
+  <p id="message"></p>
   <a href="/oauth/mailchimp/unlink">Disconnect MailChimp</a>
 {{else}}
   <a href="https://login.mailchimp.com/oauth2/authorize?{{params}}">Connect MailChimp</a>
 {{/if}}
+
+<script>
+  var reportsButton = document.getElementById('reports');
+  var userActivityButton = document.getElementById('userActivity');
+  var message = document.getElementById('message');
+
+  reportsButton.addEventListener('click', function(event) {
+    fetch('/reports').then(function(response) {
+      if (response.ok) {
+        message.innerText = 'Reports sent! Please check your Heap Analytics dashboard.';
+      }
+    });
+  });
+  userActivityButton.addEventListener('click', function(event) {
+    fetch('/activity').then(function(response) {
+      if (response.ok) {
+        message.innerText = 'User activity sent! Please check your Heap Analytics dashboard.';
+      }
+    });
+  });
+</script>

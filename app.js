@@ -22,9 +22,9 @@ app.use(session({
   secret: 'secret'
 }));
 
-// App routes
-app.get('/', function(req, res, next) {
+app.get('/', function(req, res) {
   res.render('index', {
+    metadata: req.session.metadata,
     accessToken: req.session.accessToken,
     params: qs.stringify({
       client_id: '901979316119',
@@ -36,6 +36,7 @@ app.get('/', function(req, res, next) {
 
 app.get('/oauth/mailchimp/callback', function(req, res) {
   var accessTokenUrl = 'https://login.mailchimp.com/oauth2/token';
+  var metadataUrl = 'https://login.mailchimp.com/oauth2/metadata';
   var params = {
     code: req.query.code,
     client_id: '901979316119',
@@ -46,15 +47,28 @@ app.get('/oauth/mailchimp/callback', function(req, res) {
 
   // Exchange authorization code for access token
   request.post({ url: accessTokenUrl, form: params, json: true }, function(error, response, body) {
-    console.log(body.access_token);
     req.session.accessToken = body.access_token;
-    res.redirect('/');
+
+    // Get user metadata
+    var headers = { Authorization: 'OAuth ' + req.session.accessToken };
+    request.get({ url: metadataUrl, headers: headers, json: true }, function (error, response, body) {
+      req.session.metadata = JSON.stringify(body, null, 2);
+      res.redirect('/');
+    });
   });
 });
 
 app.get('/oauth/mailchimp/unlink', function(req, res) {
   req.session.destroy();
   res.redirect('/');
+});
+
+app.get('/reports', function(req, res) {
+  res.send(200);
+});
+
+app.get('/activity', function(req, res) {
+  res.send(200);
 });
 
 // catch 404 and forward to error handler
