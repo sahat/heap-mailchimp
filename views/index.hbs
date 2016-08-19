@@ -1,0 +1,8 @@
+<h1>Heap Analytics + MailChimp</h1>
+<p>Welcome to the MailChimp Integration Example</p>
+{{#if accessToken}}
+  <h3>Access Token: {{accessToken}}</h3>
+  <a href="/oauth/mailchimp/unlink">Disconnect MailChimp</a>
+{{else}}
+  <a href="https://login.mailchimp.com/oauth2/authorize?{{params}}">Connect MailChimp</a>
+{{/if}}
