@@ -8,7 +8,7 @@
   <pre>{{metadata}}</pre>
   <h3>Heap Analytics Actions:</h3>
   <label for="appId">Heap App ID*</label>
-  <input type="text" id="appId" name="appId" value="947305111" placeholder="Required" autofocus>
+  <input type="text" id="appId" name="appId" value="215576508" placeholder="Required" autofocus>
   <p>
     <button id="userActivity">Send MailChimp User Activity</button>
     <button id="reports">Send MailChimp Reports</button>
@@ -26,6 +26,7 @@
   var message = document.getElementById('message');
   var appIdInput = document.getElementById('appId');
   var metadata = {{{metadata}}};
+  var accessToken = '{{accessToken}}';
 
   reportsButton.addEventListener('click', function(event) {
     fetch('/reports', {
@@ -52,7 +53,8 @@
       },
       body: JSON.stringify({
         appId: appIdInput.value,
-        metadata: metadata
+        metadata: metadata,
+        accessToken: accessToken
       })
     }).then(function(response) {
       if (response.ok) {

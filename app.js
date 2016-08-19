@@ -6,6 +6,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var request = require('request');
+var heap = require('heap-api');
 
 var app = express();
 
@@ -17,14 +18,14 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(session({
-  resave: true,
+  resave: false,
   saveUninitialized: true,
   secret: 'secret'
 }));
 
 app.get('/', function(req, res) {
   res.render('index', {
-    metadata: req.session.metadata,
+    metadata: JSON.stringify(req.session.metadata, null, 2),
     accessToken: req.session.accessToken,
     params: qs.stringify({
       client_id: '901979316119',
@@ -52,7 +53,7 @@ app.get('/oauth/mailchimp/callback', function(req, res) {
     // Get user metadata
     var headers = { Authorization: 'OAuth ' + req.session.accessToken };
     request.get({ url: metadataUrl, headers: headers, json: true }, function (error, response, body) {
-      req.session.metadata = JSON.stringify(body, null, 2);
+      req.session.metadata = body;
       res.redirect('/');
     });
   });
@@ -63,12 +64,57 @@ app.get('/oauth/mailchimp/unlink', function(req, res) {
   res.redirect('/');
 });
 
-app.get('/reports', function(req, res) {
-  res.send(200);
+app.post('/reports', function(req, res) {
+  var baseUrl = req.session.metadata.api_endpoint;
+  var reportsUrl = baseUrl + '/3.0/reports';
+  var headers = { Authorization: 'OAuth ' + req.session.accessToken };
+
+  request.get({ url: reportsUrl, headers: headers, json: true }, function(error, response, body) {
+    res.send(200);
+  });
 });
 
-app.get('/activity', function(req, res) {
-  res.send(200);
+app.post('/activity', function(req, res) {
+  var appId = req.body.appId;
+  var baseUrl = req.body.metadata.api_endpoint;
+  var listsUrl = [baseUrl, '/3.0/lists'].join('');
+  var headers = { Authorization: 'OAuth ' + req.body.accessToken };
+
+  // Get all MailChimp lists
+  request.get({ url: listsUrl, headers: headers, json: true }, function(error, response, body) {
+
+    var listId = body.lists[0].id;
+    var membersUrl = [baseUrl, '/3.0/lists/', listId, '/members'].join('');
+
+    // Get all members for a given list
+    request.get({ url: membersUrl, headers: headers, json: true }, function(error, response, body) {
+      var promises = [];
+      var emailMap = {};
+      body.members.forEach(function(member) {
+        emailMap[member.id] = member.email_address;
+        var promise = new Promise(function(resolve, reject) {
+          var memberActivityUrl = [baseUrl, '/3.0/lists/', listId, '/members/', member.id, '/activity'].join('');
+          request.get({ url: memberActivityUrl, headers: headers, json: true }, function(error, response, body) {
+            resolve(body);
+          });
+        });
+        promises.push(promise);
+      });
+      Promise.all(promises).then(function(values) {
+        // console.log('Resolved promises values', values);
+        values.forEach(function(member) {
+          member.activity.forEach(function(activity) {
+            heap(appId).track(activity.action, emailMap[member.email_id], {
+              timestamp: activity.timestamp,
+              campaign_id: activity.campaign_id,
+              title: activity.title
+            });
+          });
+          res.status(200).end();
+        });
+      });
+    });
+  });
 });
 
 // catch 404 and forward to error handler
@@ -81,6 +127,7 @@ app.use(function(req, res, next) {
 // development error handler
 if (app.get('env') === 'development') {
   app.use(function(err, req, res, next) {
+    console.error(err);
     res.status(err.status || 500);
     res.render('error', {
       message: err.message,
