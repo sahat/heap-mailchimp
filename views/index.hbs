@@ -5,6 +5,8 @@
   <h3>User Metadata:</h3>
   <pre>{{metadata}}</pre>
   <h3>Heap Analytics Actions:</h3>
+  <label for="appId">Heap App ID*</label>
+  <input type="text" id="appId" name="appId" value="947305111" placeholder="Required" autofocus>
   <p>
     <button id="reports">Send MailChimp Reports</button>
     <button id="userActivity">Send MailChimp User Activity</button>
@@ -16,19 +18,38 @@
 {{/if}}
 
 <script>
+  var appId = document.getElementById('appId');
   var reportsButton = document.getElementById('reports');
   var userActivityButton = document.getElementById('userActivity');
   var message = document.getElementById('message');
 
   reportsButton.addEventListener('click', function(event) {
-    fetch('/reports').then(function(response) {
+    fetch('/reports', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        appId: appId,
+      })
+    }).then(function(response) {
       if (response.ok) {
         message.innerText = 'Reports sent! Please check your Heap Analytics dashboard.';
       }
     });
   });
   userActivityButton.addEventListener('click', function(event) {
-    fetch('/activity').then(function(response) {
+    fetch('/activity', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        appId: appId,
+      })
+    }).then(function(response) {
       if (response.ok) {
         message.innerText = 'User activity sent! Please check your Heap Analytics dashboard.';
       }
