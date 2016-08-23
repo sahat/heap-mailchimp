@@ -24,6 +24,20 @@ app.use(session({
 }));
 
 app.get('/', function(req, res) {
+  req.session.metadata = { dc: 'us14',
+    role: 'owner',
+    accountname: 'Self Employed',
+    user_id: 60879593,
+    login:
+    { email: 'sakhat@gmail.com',
+      avatar: null,
+      login_id: 64638189,
+      login_name: 'sakhat',
+      login_email: 'sakhat@gmail.com' },
+    login_url: 'https://login.mailchimp.com',
+    api_endpoint: 'https://us14.api.mailchimp.com' };
+  req.session.accessToken = '51f3fdf142cf7d65f2bd0db0e85e3c18';
+
   res.render('index', {
     metadata: JSON.stringify(req.session.metadata, null, 2),
     accessToken: req.session.accessToken,
@@ -101,13 +115,18 @@ app.post('/activity', function(req, res) {
         promises.push(promise);
       });
       Promise.all(promises).then(function(values) {
-        // console.log('Resolved promises values', values);
         values.forEach(function(member) {
           member.activity.forEach(function(activity) {
+            if (emailMap[member.email_id] === 'sakhat@gmail.com') {
+              console.log(activity);
+            }
             heap(appId).track(activity.action, emailMap[member.email_id], {
               timestamp: activity.timestamp,
+              url: activity.url,
+              type: activity.type,
               campaign_id: activity.campaign_id,
-              title: activity.title
+              title: activity.title,
+              parent_campaign: activity.parent_campaign
             });
           });
           res.status(200).end();
