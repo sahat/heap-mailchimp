@@ -24,6 +24,22 @@ app.use(session({
 }));
 
 app.get('/', function(req, res) {
+  req.session.metadata = {
+    dc: 'us14',
+    role: 'owner',
+    accountname: 'Self Employed',
+    user_id: 60879593,
+    login: {
+      email: 'sakhat@gmail.com',
+      avatar: null,
+      login_id: 64638189,
+      login_name: 'sakhat',
+      login_email: 'sakhat@gmail.com'
+    },
+    login_url: 'https://login.mailchimp.com',
+    api_endpoint: 'https://us14.api.mailchimp.com'
+  };
+  req.session.accessToken = '51f3fdf142cf7d65f2bd0db0e85e3c18';
   res.render('index', {
     metadata: JSON.stringify(req.session.metadata, null, 2),
     accessToken: req.session.accessToken,
@@ -74,45 +90,82 @@ app.post('/reports', function(req, res) {
   });
 });
 
+// app.post('/activity', function(req, res) {
+//   var appId = req.body.appId;
+//   var baseUrl = req.body.metadata.api_endpoint;
+//   var listsUrl = [baseUrl, '/3.0/lists'].join('');
+//   var headers = { Authorization: 'OAuth ' + req.body.accessToken };
+//
+//   // Get all MailChimp lists
+//   request.get({ url: listsUrl, headers: headers, json: true }, function(error, response, body) {
+//
+//     var listId = body.lists[0].id;
+//     var membersUrl = [baseUrl, '/3.0/lists/', listId, '/members'].join('');
+//
+//     // Get all members for a given list
+//     request.get({ url: membersUrl, headers: headers, json: true }, function(error, response, body) {
+//       var promises = [];
+//       var emailMap = {};
+//
+//       // Async tasks for each member, where each task fetches activity data
+//       body.members.forEach(function(member) {
+//         emailMap[member.id] = member.email_address;
+//         var promise = new Promise(function(resolve, reject) {
+//           var memberActivityUrl = [baseUrl, '/3.0/lists/', listId, '/members/', member.id, '/activity'].join('');
+//           request.get({ url: memberActivityUrl, headers: headers, json: true }, function(error, response, body) {
+//             resolve(body);
+//           });
+//         });
+//         promises.push(promise);
+//       });
+//
+//       Promise.all(promises).then(function(values) {
+//         values.forEach(function(member) {
+//           member.activity.forEach(function(activity) {
+//             heap(appId).track(activity.action, emailMap[member.email_id], {
+//               timestamp: activity.timestamp,
+//               url: activity.url,
+//               type: activity.type,
+//               campaign_id: activity.campaign_id,
+//               title: activity.title,
+//               parent_campaign: activity.parent_campaign
+//             });
+//           });
+//           res.status(200).end();
+//         });
+//       });
+//     });
+//   });
+// });
+
 app.post('/activity', function(req, res) {
   var appId = req.body.appId;
   var baseUrl = req.body.metadata.api_endpoint;
-  var listsUrl = [baseUrl, '/3.0/lists'].join('');
+  var reportsUrl = [baseUrl, '/3.0/reports'].join('');
   var headers = { Authorization: 'OAuth ' + req.body.accessToken };
 
-  // Get all MailChimp lists
-  request.get({ url: listsUrl, headers: headers, json: true }, function(error, response, body) {
+  // Get all MailChimp campaigns
+  request.get({ url: reportsUrl, headers: headers, json: true }, function(error, response, body) {
+    var campaign = body.reports[0];
+    var campaignId = body.reports[0].id;
+    var membersActivityUrl = [baseUrl, '/3.0/reports/', campaignId, '/email-activity'].join('');
 
-    var listId = body.lists[0].id;
-    var membersUrl = [baseUrl, '/3.0/lists/', listId, '/members'].join('');
-
-    // Get all members for a given list
-    request.get({ url: membersUrl, headers: headers, json: true }, function(error, response, body) {
-      var promises = [];
-      var emailMap = {};
-      body.members.forEach(function(member) {
-        emailMap[member.id] = member.email_address;
-        var promise = new Promise(function(resolve, reject) {
-          var memberActivityUrl = [baseUrl, '/3.0/lists/', listId, '/members/', member.id, '/activity'].join('');
-          request.get({ url: memberActivityUrl, headers: headers, json: true }, function(error, response, body) {
-            resolve(body);
-          });
-        });
-        promises.push(promise);
-      });
-      Promise.all(promises).then(function(values) {
-        values.forEach(function(member) {
-          member.activity.forEach(function(activity) {
-            heap(appId).track(activity.action, emailMap[member.email_id], {
-              timestamp: activity.timestamp,
-              url: activity.url,
-              type: activity.type,
-              campaign_id: activity.campaign_id,
-              title: activity.title,
-              parent_campaign: activity.parent_campaign
-            });
-          });
-          res.status(200).end();
+    // Get all email activity for a given campaign report
+    request.get({ url: membersActivityUrl, headers: headers, json: true }, function (error, response, body) {
+      body.emails.forEach(function(email) {
+        email.activity.forEach(function(activity) {
+          var properties = {
+            campaign_id: email.campaign_id,
+            campaign_title: campaign.campaign_title,
+            list_id: email.list_id,
+            email_id: email.email_id,
+            ip: activity.ip,
+            timestamp: activity.timestamp,
+          };
+          if (activity === 'click') {
+            properties.url = activity.url;
+          }
+          heap(appId).track(activity.action, email.email_address, properties);
         });
       });
     });
