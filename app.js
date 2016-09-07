@@ -24,22 +24,6 @@ app.use(session({
 }));
 
 app.get('/', function(req, res) {
-  req.session.metadata = {
-    dc: 'us14',
-    role: 'owner',
-    accountname: 'Self Employed',
-    user_id: 60879593,
-    login: {
-      email: 'sakhat@gmail.com',
-      avatar: null,
-      login_id: 64638189,
-      login_name: 'sakhat',
-      login_email: 'sakhat@gmail.com'
-    },
-    login_url: 'https://login.mailchimp.com',
-    api_endpoint: 'https://us14.api.mailchimp.com'
-  };
-  req.session.accessToken = '51f3fdf142cf7d65f2bd0db0e85e3c18';
   res.render('index', {
     metadata: JSON.stringify(req.session.metadata, null, 2),
     accessToken: req.session.accessToken,
@@ -66,6 +50,7 @@ app.get('/oauth/mailchimp/callback', function(req, res) {
   request.post({ url: accessTokenUrl, form: params, json: true }, function(error, response, body) {
     req.session.accessToken = body.access_token;
 
+console.log(body);
     // Get user metadata
     var headers = { Authorization: 'OAuth ' + req.session.accessToken };
     request.get({ url: metadataUrl, headers: headers, json: true }, function (error, response, body) {
